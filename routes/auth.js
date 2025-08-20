@@ -48,9 +48,6 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
-    console.log("username:", username);
-    console.log("password:", password);
-
     if(username.toLowerCase() === "admin" && password.toLowerCase() === "admin"){
       return res.status(200).json({
         message: "Login successful",

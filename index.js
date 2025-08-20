@@ -23,8 +23,7 @@ app.use(cors({
   credentials: true,
 }));
 
-// Handle preflight requests globally
-app.options(/.*/, cors());
+
 
 app.use(express.json({ limit: '50mb' }));
 
