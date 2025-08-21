@@ -12,7 +12,7 @@ const formDataSchema = new mongoose.Schema({
   occupiersName: { type: String, required: true },
   gender: { type: String, required: true },
   fatherName: { type: String, required: true },
-  motherName: { type: String, required: true },
+  motherName: { type: String},
   contactNumber: { type: String, required: true },
   ownerOrTenant: { type: String, required: true },
   tenantDetails: {

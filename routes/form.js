@@ -84,17 +84,36 @@ router.get('/download-excel', async (req, res) => {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Form Data');
 
-        // Define columns dynamically
-        const columns = Object.keys(FormData.schema.paths).map(key => ({
-            header: key.replace(/([A-Z])/g, ' $1').trim(), // Make headers more readable
-            key: key,
-            width: 20
-        }));
+        // Dynamically create columns from the schema, including nested tenant details
+        const columns = [];
+        for (const key of Object.keys(FormData.schema.paths)) {
+            // Check if the path is a nested object and if it contains 'tenantDetails'
+            if (key.includes('tenantDetails.')) {
+                // Format nested path for the header (e.g., 'tenantDetails.monthlyRent' -> 'Monthly Rent')
+                const header = key.split('.')[1].replace(/([A-Z])/g, ' $1').trim();
+                columns.push({ header: header, key: key, width: 20 });
+            } else if (key !== 'tenantDetails') {
+                // Exclude the parent 'tenantDetails' key itself
+                const header = key.replace(/([A-Z])/g, ' $1').trim();
+                columns.push({ header: header, key: key, width: 20 });
+            }
+        }
         worksheet.columns = columns;
 
         // Add rows with image handling
         for (const entry of data) {
             const entryObject = entry.toObject();
+            
+            // Flatten the tenantDetails object for ExcelJS to correctly process it
+            if (entryObject.tenantDetails) {
+                for (const detailKey in entryObject.tenantDetails) {
+                    // Create a new key with the full path
+                    entryObject[`tenantDetails.${detailKey}`] = entryObject.tenantDetails[detailKey];
+                }
+                // Delete the original nested object to avoid duplication
+                delete entryObject.tenantDetails;
+            }
+
             const row = worksheet.addRow(entryObject);
 
             // Function to add an image to a specific cell
@@ -107,11 +126,9 @@ router.get('/download-excel', async (req, res) => {
                             extension: imagePath.split('.').pop()
                         });
 
-                        // Set a fixed height for image rows
                         const currentRow = worksheet.getRow(row.number);
                         currentRow.height = 100;
 
-                        // Add the image to the cell
                         worksheet.addImage(imageId, {
                             tl: { col: cellIndex, row: row.number - 1 },
                             ext: { width: 100, height: 100 }
@@ -133,14 +150,11 @@ router.get('/download-excel', async (req, res) => {
             }
         }
         
-        // Set headers to trigger file download
+        // Set headers and write the workbook
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename=formData.xlsx');
-
-        // Write the workbook and send it
         await workbook.xlsx.write(res);
         res.end();
-
     } catch (err) {
         console.error('Error generating Excel file:', err);
         res.status(500).send('Server error');
