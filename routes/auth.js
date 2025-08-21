@@ -47,7 +47,7 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { name, password } = req.body;
-    if(name.toLowerCase() === "admin" && password.toLowerCase() === "admin"){
+    if(name.toLowerCase() === process.env.ADMIN_NAME && password.toLowerCase() === process.env.ADMIN_PASSWORD || name=== process.env.ADMIN_VISION_NAME && password === process.env.ADMIN_VISION_PASSWORD){
       return res.status(200).json({
         message: "Login successful",
         user: {
