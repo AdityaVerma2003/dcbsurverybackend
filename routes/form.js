@@ -161,4 +161,39 @@ router.get('/download-excel', async (req, res) => {
     }
 });
 
+// Delete a form entry by ID
+router.delete('/delete/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const entry = await FormData.findById(id);
+
+        if (!entry) {
+            return res.status(404).json({ error: "Form entry not found" });
+        }
+
+        // Optionally: remove uploaded images from disk
+        const deleteFile = (filePath) => {
+            try {
+                const fullPath = path.join(__dirname, '..', filePath);
+                if (fs.existsSync(fullPath)) {
+                    fs.unlinkSync(fullPath);
+                }
+            } catch (err) {
+                console.error("Error deleting file:", err);
+            }
+        };
+
+        if (entry.buildingPhoto) deleteFile(entry.buildingPhoto);
+        if (entry.mainGatePhoto) deleteFile(entry.mainGatePhoto);
+
+        await FormData.findByIdAndDelete(id);
+
+        res.json({ message: "Form entry deleted successfully" });
+    } catch (err) {
+        console.error("Error deleting form entry:", err);
+        res.status(500).send("Server error");
+    }
+});
+
+
 module.exports = router;
