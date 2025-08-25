@@ -12,7 +12,7 @@ const formDataSchema = new mongoose.Schema({
   occupiersName: { type: String, required: true },
   gender: { type: String, required: true },
   fatherName: { type: String, required: true },
-  motherName: { type: String},
+  motherName: { type: String,  required: true },
   contactNumber: { type: String, required: true },
   ownerOrTenant: { type: String, required: true },
   tenantDetails: {
@@ -26,7 +26,8 @@ const formDataSchema = new mongoose.Schema({
   },
   areaOfPlot: { type: Number, required: true },
   natureOfBuilding: { type: String, required: true },
-  numberOfFloors: { type: [String], required: true },
+  numberOfFloors: { type: String, required: true },
+  floor: { type: String, required: true },
   floorArea: { type: Number, required: true },
   usageType: { type: String, required: true },
   mainGatePhoto: { type: String, required: true },
