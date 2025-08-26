@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const FormData = require('../models/FormData');
-const jwt = require('jsonwebtoken'); // You might not need this if you're not using JWT
+
 const path = require('path');
 const fs = require('fs');
 const ExcelJS = require('exceljs');
+const uploadBase64Image = require("../helpers/uploadBase64");
 
 // Helper function to handle Base64 decoding and saving
 const saveBase64Image = (base64String, uploadDir) => {
@@ -31,38 +32,37 @@ const saveBase64Image = (base64String, uploadDir) => {
 };
 
 
+router.get("/ping", (req, res) => {
+  res.status(200).json({ ok: true, time: new Date().toISOString() });
+});
 
-// Set up the static directory for serving uploaded files
-router.use('/uploads', express.static('uploads'));
-
-// Submit form data
+// Submit form data - now stores Cloudinary URLs instead of saving local files
 router.post('/submit', async (req, res) => {
-    try {
-        const { buildingPhoto, mainGatePhoto, ...formData } = req.body;
-        const uploadsDir = path.join(__dirname, '..', 'uploads');
+  try {
+    const { buildingPhoto, mainGatePhoto, ...formData } = req.body;
 
-        // Check if both Base64 strings were provided
-        if (!buildingPhoto || !mainGatePhoto) {
-            return res.status(400).json({ error: 'Both buildingPhoto and mainGatePhoto are required.' });
-        }
-
-        // Save the Base64 images and get their file paths
-        const buildingPhotoPath = saveBase64Image(buildingPhoto, uploadsDir);
-        const mainGatePhotoPath = saveBase64Image(mainGatePhoto, uploadsDir);
-
-        // Create a new form entry with the file paths
-        const newFormEntry = new FormData({
-            ...formData,
-            buildingPhoto: buildingPhotoPath,
-            mainGatePhoto: mainGatePhotoPath,
-        });
-
-        await newFormEntry.save();
-        res.status(201).json({ message: 'Form submitted successfully' });
-    } catch (err) {
-        console.error('Error submitting form:', err);
-        res.status(500).send('Server error');
+    if (!buildingPhoto || !mainGatePhoto) {
+      return res.status(400).json({ error: 'Both buildingPhoto and mainGatePhoto are required.' });
     }
+
+    // Upload to Cloudinary
+    const [buildingPhotoUrl, mainGatePhotoUrl] = await Promise.all([
+      uploadBase64Image(buildingPhoto, "dcbsurvey"),
+      uploadBase64Image(mainGatePhoto, "dcbsurvey"),
+    ]);
+
+    const newFormEntry = new FormData({
+      ...formData,
+      buildingPhoto: buildingPhotoUrl,
+      mainGatePhoto: mainGatePhotoUrl,
+    });
+
+    await newFormEntry.save();
+    res.status(201).json({ message: 'Form submitted successfully', data: newFormEntry });
+  } catch (err) {
+    console.error('Error submitting form:', err);
+    res.status(500).send('Server error');
+  }
 });
 
 // Get all form data (Admin only)

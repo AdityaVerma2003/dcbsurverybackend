@@ -38,9 +38,11 @@ mongoose.connect(process.env.MONGO_URI)
 // Routes
 const authRoutes = require('./routes/auth');
 const formRoutes = require('./routes/form');
+const exportRoutes = require('./routes/export');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/form', formRoutes);
+app.use("/api", exportRoutes);
 
 // In your backend (e.g., routes/geocode.js)
 app.get('/api/geocode', async (req, res) => {
@@ -63,6 +65,8 @@ app.get('/api/geocode', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch location data' });
   }
 });
+
+require("./worker");
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
