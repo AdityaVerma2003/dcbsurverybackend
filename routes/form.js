@@ -103,23 +103,29 @@ router.get('/download-excel', async (req, res) => {
         // Add rows with image handling
         for (const entry of data) {
             const entryObject = entry.toObject();
-            
-            // Flatten the tenantDetails object for ExcelJS to correctly process it
+
+            // Flatten tenantDetails
             if (entryObject.tenantDetails) {
                 for (const detailKey in entryObject.tenantDetails) {
-                    // Create a new key with the full path
                     entryObject[`tenantDetails.${detailKey}`] = entryObject.tenantDetails[detailKey];
                 }
-                // Delete the original nested object to avoid duplication
                 delete entryObject.tenantDetails;
             }
 
+            // Remove image paths so they don’t get added as text
+            const buildingPath = entryObject.buildingPhoto;
+            const mainGatePath = entryObject.mainGatePhoto;
+            delete entryObject.buildingPhoto;
+            delete entryObject.mainGatePhoto;
+
+            // Add row without image fields
             const row = worksheet.addRow(entryObject);
 
-            // Function to add an image to a specific cell
-            const addImageToCell = (key, cellIndex) => {
-                if (entryObject[key]) {
-                    const imagePath = path.join(__dirname, '..', entryObject[key]);
+            // Helper to embed an image
+            const addImageToCell = (filePath, colIndex) => {
+                if (filePath) {
+                    const imagePath = path.join(__dirname, '..', filePath);
+
                     if (fs.existsSync(imagePath)) {
                         const imageId = workbook.addImage({
                             filename: imagePath,
@@ -130,26 +136,22 @@ router.get('/download-excel', async (req, res) => {
                         currentRow.height = 100;
 
                         worksheet.addImage(imageId, {
-                            tl: { col: cellIndex, row: row.number - 1 },
+                            tl: { col: colIndex, row: row.number - 1 },
                             ext: { width: 100, height: 100 }
                         });
                     }
                 }
             };
-            
-            // Find the column index for 'buildingPhoto' and 'mainGatePhoto'
+
             const buildingPhotoColIndex = columns.findIndex(col => col.key === 'buildingPhoto');
             const mainGatePhotoColIndex = columns.findIndex(col => col.key === 'mainGatePhoto');
-            
-            // Add images if paths exist
-            if (buildingPhotoColIndex !== -1) {
-                addImageToCell('buildingPhoto', buildingPhotoColIndex);
-            }
-            if (mainGatePhotoColIndex !== -1) {
-                addImageToCell('mainGatePhoto', mainGatePhotoColIndex);
-            }
+
+            if (buildingPhotoColIndex !== -1) addImageToCell(buildingPath, buildingPhotoColIndex);
+            if (mainGatePhotoColIndex !== -1) addImageToCell(mainGatePath, mainGatePhotoColIndex);
         }
-        
+
+
+
         // Set headers and write the workbook
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename=formData.xlsx');
