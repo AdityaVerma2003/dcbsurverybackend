@@ -7,30 +7,6 @@ const fs = require('fs');
 const ExcelJS = require('exceljs');
 const uploadBase64Image = require("../helpers/uploadBase64");
 
-// Helper function to handle Base64 decoding and saving
-const saveBase64Image = (base64String, uploadDir) => {
-    // Check if the uploads directory exists, if not, create it
-    if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    // Regular expression to match the data URI prefix and extract the data
-    const matches = base64String.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-    if (!matches || matches.length !== 3) {
-        throw new Error('Invalid Base64 string format.');
-    }
-
-    const type = matches[1]; // e.g., 'image/png'
-    const data = matches[2];
-    const buffer = Buffer.from(data, 'base64');
-    const extension = type.split('/')[1];
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
-    const filePath = path.join(uploadDir, fileName);
-
-    fs.writeFileSync(filePath, buffer);
-    return `/uploads/${fileName}`; // Return the path relative to the server
-};
-
 
 router.get("/ping", (req, res) => {
   res.status(200).json({ ok: true, time: new Date().toISOString() });
@@ -72,93 +48,6 @@ router.get('/data', async (req, res) => {
         res.json(data);
     } catch (err) {
         console.error('Error fetching data:', err);
-        res.status(500).send('Server error');
-    }
-});
-
-// New route to download all data as an Excel sheet with images
-router.get('/download-excel', async (req, res) => {
-    try {
-        const data = await FormData.find().sort({ createdAt: -1 });
-
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Form Data');
-
-        // Dynamically create columns from the schema, including nested tenant details
-        const columns = [];
-        for (const key of Object.keys(FormData.schema.paths)) {
-            // Check if the path is a nested object and if it contains 'tenantDetails'
-            if (key.includes('tenantDetails.')) {
-                // Format nested path for the header (e.g., 'tenantDetails.monthlyRent' -> 'Monthly Rent')
-                const header = key.split('.')[1].replace(/([A-Z])/g, ' $1').trim();
-                columns.push({ header: header, key: key, width: 20 });
-            } else if (key !== 'tenantDetails') {
-                // Exclude the parent 'tenantDetails' key itself
-                const header = key.replace(/([A-Z])/g, ' $1').trim();
-                columns.push({ header: header, key: key, width: 20 });
-            }
-        }
-        worksheet.columns = columns;
-
-        // Add rows with image handling
-        for (const entry of data) {
-            const entryObject = entry.toObject();
-
-            // Flatten tenantDetails
-            if (entryObject.tenantDetails) {
-                for (const detailKey in entryObject.tenantDetails) {
-                    entryObject[`tenantDetails.${detailKey}`] = entryObject.tenantDetails[detailKey];
-                }
-                delete entryObject.tenantDetails;
-            }
-
-            // Remove image paths so they don’t get added as text
-            const buildingPath = entryObject.buildingPhoto;
-            const mainGatePath = entryObject.mainGatePhoto;
-            delete entryObject.buildingPhoto;
-            delete entryObject.mainGatePhoto;
-
-            // Add row without image fields
-            const row = worksheet.addRow(entryObject);
-
-            // Helper to embed an image
-            const addImageToCell = (filePath, colIndex) => {
-                if (filePath) {
-                    const imagePath = path.join(__dirname, '..', filePath);
-
-                    if (fs.existsSync(imagePath)) {
-                        const imageId = workbook.addImage({
-                            filename: imagePath,
-                            extension: imagePath.split('.').pop()
-                        });
-
-                        const currentRow = worksheet.getRow(row.number);
-                        currentRow.height = 100;
-
-                        worksheet.addImage(imageId, {
-                            tl: { col: colIndex, row: row.number - 1 },
-                            ext: { width: 100, height: 100 }
-                        });
-                    }
-                }
-            };
-
-            const buildingPhotoColIndex = columns.findIndex(col => col.key === 'buildingPhoto');
-            const mainGatePhotoColIndex = columns.findIndex(col => col.key === 'mainGatePhoto');
-
-            if (buildingPhotoColIndex !== -1) addImageToCell(buildingPath, buildingPhotoColIndex);
-            if (mainGatePhotoColIndex !== -1) addImageToCell(mainGatePath, mainGatePhotoColIndex);
-        }
-
-
-
-        // Set headers and write the workbook
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename=formData.xlsx');
-        await workbook.xlsx.write(res);
-        res.end();
-    } catch (err) {
-        console.error('Error generating Excel file:', err);
         res.status(500).send('Server error');
     }
 });

@@ -10,7 +10,13 @@ async function uploadBase64Image(base64String, folder = "dcbsurvey") {
     resource_type: "image",
     use_filename: true,
     unique_filename: false,
+    transformation: [
+      { width: 1024, height: 1024, crop: "limit" }, // resize if too large
+      { quality: "auto" },                          // auto-compression
+      { fetch_format: "auto" }                      // modern format (WebP/AVIF)
+    ],
   });
+
   return result.secure_url; // store this in DB
 }
 
