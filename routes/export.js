@@ -1,14 +1,14 @@
-// routes/export.js
 const express = require("express");
 const router = express.Router();
 const { excelQueue } = require("../queue");
+const { excelQueueEvents } = require("../queueEvents");
 
 // POST /api/export  -> enqueue job
 router.post("/export", async (req, res) => {
   try {
-    const filters = req.body?.filters || {}; // optional filters
+    const filters = req.body?.filters || {};
     const job = await excelQueue.add("generate-excel", { filters }, {
-      removeOnComplete: { age: 60 * 60 * 24 * 7, count: 10 }, // keep meta for a week
+      removeOnComplete: { age: 60 * 60 * 24 * 7, count: 10 },
       removeOnFail: { age: 60 * 60 * 24 * 7, count: 10 },
       attempts: 2,
       backoff: { type: "exponential", delay: 5000 },
@@ -21,19 +21,38 @@ router.post("/export", async (req, res) => {
   }
 });
 
-// GET /api/export/:jobId/status -> poll for job state + downloadUrl when ready
-router.get("/export/:jobId/status", async (req, res) => {
-  const job = await excelQueue.getJob(req.params.jobId);
-  if (!job) return res.status(404).json({ status: "notfound" });
+// 🔥 NEW: SSE stream for job status
+router.get("/export/:jobId/stream", async (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
 
-  const state = await job.getState();
-  const progress = job.progress;
-  const returnValue = job.returnvalue;
+  const { jobId } = req.params;
 
-  res.json({
-    status: state,
-    progress,
-    downloadUrl: returnValue?.downloadUrl || null,
+  // Progress updates
+  excelQueueEvents.on("progress", ({ jobId: id, data }) => {
+    if (id === jobId) {
+      res.write(`event: progress\n`);
+      res.write(`data: ${JSON.stringify({ progress: data })}\n\n`);
+    }
+  });
+
+  // Completed
+  excelQueueEvents.on("completed", ({ jobId: id, returnvalue }) => {
+    if (id === jobId) {
+      res.write(`event: completed\n`);
+      res.write(`data: ${JSON.stringify(returnvalue)}\n\n`);
+      res.end();
+    }
+  });
+
+  // Failed
+  excelQueueEvents.on("failed", ({ jobId: id, failedReason }) => {
+    if (id === jobId) {
+      res.write(`event: failed\n`);
+      res.write(`data: ${JSON.stringify({ error: failedReason })}\n\n`);
+      res.end();
+    }
   });
 });
 
