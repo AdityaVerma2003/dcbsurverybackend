@@ -18,11 +18,5 @@ const redisConnection = {
 };
 
 // Debug logs (don’t log password directly)
-console.log("🔧 Redis Connection Details:");
-console.log("Host:", redisConnection.host);
-console.log("Port:", redisConnection.port);
-console.log("Username:", redisConnection.username || "❌ None");
-console.log("Password:", redisConnection.password ? "✅ Exists" : "❌ Missing");
-console.log("TLS Enabled:", !!redisConnection.tls);
-
+console.log("🔧 Redis Connected");
 module.exports = { redisConnection };

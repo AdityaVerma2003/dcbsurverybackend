@@ -8,7 +8,7 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigins = ['http://localhost:5173' , 'https://dcbsurvey.vercel.app' , 'https://hhsdcb.in'];
+const allowedOrigins = ['http://localhost:5173' , 'https://hhsdcb.vercel.app/' , 'https://hhsdcb.in'];
 
 app.use(cors({
   origin: function (origin, callback) {

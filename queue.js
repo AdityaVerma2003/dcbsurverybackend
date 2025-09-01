@@ -2,7 +2,7 @@
 const { Queue } = require("bullmq");
 const { redisConnection } = require("./redis");
 
-console.log("⚙️  Initializing Excel Queue with Redis connection:", redisConnection);
+console.log("⚙️  Initializing Excel Queue with Redis connection:");
 
 const excelQueue = new Queue("excelQueue", {
   connection: redisConnection,
